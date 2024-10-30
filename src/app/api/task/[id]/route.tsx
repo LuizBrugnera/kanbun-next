@@ -4,12 +4,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 // Operações com uma tarefa específica
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: Request, context: any) {
   try {
-    const { id } = params;
+    const { id } = context.params;
     const task = await prisma.task.findUnique({
       where: { id },
       include: {
@@ -33,12 +30,9 @@ export async function GET(
   }
 }
 
-export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: Request, context: any) {
   try {
-    const { id } = params;
+    const { id } = context.params;
     const data = await request.json();
 
     const oldTask = await prisma.task.findUnique({
@@ -78,12 +72,9 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: Request, context: any) {
   try {
-    const { id } = params;
+    const { id } = context.params;
     await prisma.task.delete({ where: { id } });
     return NextResponse.json({ message: "Tarefa excluída" });
   } catch (error) {

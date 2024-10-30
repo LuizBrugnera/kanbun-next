@@ -124,7 +124,7 @@ export default function GroupDetails({ id }: { id: number }) {
       console.error("Erro ao adicionar membro:", error);
       toast({
         title: "Erro",
-        description: error || "Erro ao adicionar o membro.",
+        description: "Erro ao adicionar o membro.",
         variant: "destructive",
       });
     } finally {

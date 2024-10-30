@@ -3,12 +3,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: Request, context: any) {
   try {
-    const { id } = params;
+    const { id } = context.params;
     const user = await prisma.user.findUnique({
       where: { id },
       select: {
@@ -39,12 +36,9 @@ export async function GET(
   }
 }
 
-export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: Request, context: any) {
   try {
-    const { id } = params;
+    const { id } = context.params;
     const data = await request.json();
 
     if (data.password) {
@@ -67,12 +61,9 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: Request, context: any) {
   try {
-    const { id } = params;
+    const { id } = context.params;
     await prisma.user.delete({ where: { id } });
     return NextResponse.json({ message: "Usuário excluído" });
   } catch (error) {

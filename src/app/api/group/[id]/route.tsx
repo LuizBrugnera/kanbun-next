@@ -1,17 +1,11 @@
-// app/api/tasks/[id]/route.ts
-
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// Operações com uma tarefa específica
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, context: any) {
   try {
-    const { id } = params;
+    const { id } = context.params;
     const group = await prisma.group.findUnique({
-      where: { id: +id },
+      where: { id: Number(id) },
       include: {
         tasks: {
           include: {
@@ -25,11 +19,12 @@ export async function GET(
         },
       },
     });
+
     if (group) {
       return NextResponse.json(group);
     } else {
       return NextResponse.json(
-        { error: "Grupo não encontrada" },
+        { error: "Grupo não encontrado" },
         { status: 404 }
       );
     }
@@ -42,7 +37,8 @@ export async function GET(
   }
 }
 
-export async function PUT(request: Request) {
+// Função para atualizar um grupo específico
+export async function PUT(request: NextRequest, context: any) {
   try {
     const data = await request.json();
     const { id, name, description, users } = data;
@@ -55,12 +51,12 @@ export async function PUT(request: Request) {
     }
 
     const updatedGroup = await prisma.group.update({
-      where: { id: id },
+      where: { id: Number(id) },
       data: { name, description },
     });
 
     const existingMembers = await prisma.userGroup.findMany({
-      where: { group_id: id },
+      where: { group_id: Number(id) },
       select: { user_id: true },
     });
 
@@ -68,36 +64,34 @@ export async function PUT(request: Request) {
     const newMemberIds = Array.isArray(users) ? users : [];
 
     const usersToAdd = newMemberIds.filter(
-      (user) => !existingMemberIds.includes(user.id)
+      (user: { id: string }) => !existingMemberIds.includes(user.id)
     );
 
     const usersToRemove = existingMemberIds.filter(
-      (id) => !newMemberIds.some((member) => member.id === id)
+      (id) => !newMemberIds.some((member: { id: string }) => member.id === id)
     );
 
     if (usersToAdd.length > 0) {
-      const userGroupData = usersToAdd.map((userId: { id: string }) => ({
-        user_id: userId.id,
-        group_id: id,
+      const userGroupData = usersToAdd.map((user: { id: string }) => ({
+        user_id: user.id,
+        group_id: Number(id),
       }));
-      console.log(userGroupData);
       await prisma.userGroup.createMany({
         data: userGroupData,
       });
     }
 
     if (usersToRemove.length > 0) {
-      console.log(usersToRemove);
       await prisma.userGroup.deleteMany({
         where: {
-          group_id: id,
+          group_id: Number(id),
           user_id: { in: usersToRemove },
         },
       });
     }
 
     const groupWithMembers = await prisma.group.findUnique({
-      where: { id: id },
+      where: { id: Number(id) },
       include: {
         users: {
           include: {
@@ -117,13 +111,10 @@ export async function PUT(request: Request) {
   }
 }
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest, context: any) {
   try {
-    const { id } = params;
-    await prisma.task.delete({ where: { id } });
+    const { id } = context.params;
+    await prisma.task.delete({ where: { id: String(id) } });
     return NextResponse.json({ message: "Tarefa excluída" });
   } catch (error) {
     console.error("Erro ao excluir tarefa:", error);

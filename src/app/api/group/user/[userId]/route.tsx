@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(
-  request: Request,
-  context: { params: { userId: string } }
-) {
+export async function GET(request: Request, context: any) {
   try {
     const { userId } = context.params;
     if (!userId) throw new Error("User ID is missing.");
@@ -38,10 +35,7 @@ export async function GET(
   }
 }
 
-export async function PUT(
-  request: Request,
-  context: { params: { userId: string } }
-) {
+export async function PUT(request: Request, context: any) {
   try {
     const { userId } = context.params;
     if (!userId) throw new Error("User ID is missing.");

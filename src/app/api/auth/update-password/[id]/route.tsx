@@ -1,11 +1,8 @@
 import bcrypt from "bcrypt";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function PUT(
-  request: Request,
-  context: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest, context: any) {
   try {
     const { id } = context.params;
     if (!id) throw new Error("User ID is missing.");
