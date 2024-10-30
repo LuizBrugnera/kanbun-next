@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,88 +13,25 @@ import {
 } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlusCircle, Users } from "lucide-react";
+import { Edit, PlusCircle, Users } from "lucide-react";
+import { AuthContext } from "@/contexts/AuthContext";
 
 type Group = {
   id: string;
   name: string;
-  members: {
-    id: string;
-    name: string;
-    avatar: string;
+  users: {
+    user: {
+      id: string;
+      name: string;
+      avatar: string;
+    };
   }[];
 };
 
-const myGroups: Group[] = [
-  {
-    id: "1",
-    name: "Projeto A",
-    members: [
-      {
-        id: "1",
-        name: "Alice Johnson",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-      {
-        id: "2",
-        name: "Bob Smith",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-      {
-        id: "3",
-        name: "Charlie Brown",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-    ],
-  },
-  {
-    id: "2",
-    name: "Equipe de Marketing",
-    members: [
-      {
-        id: "4",
-        name: "Diana Ross",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-      {
-        id: "5",
-        name: "Edward Norton",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-    ],
-  },
-  {
-    id: "3",
-    name: "Desenvolvimento Web",
-    members: [
-      {
-        id: "6",
-        name: "Fiona Apple",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-      {
-        id: "7",
-        name: "George Clooney",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-      {
-        id: "8",
-        name: "Helen Mirren",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-      {
-        id: "9",
-        name: "Ian McKellen",
-        avatar: "/placeholder.svg?height=32&width=32",
-      },
-    ],
-  },
-];
-
 export default function MyGroups() {
-  const [groups, setGroups] = useState<Group[]>(myGroups);
+  const { user } = useContext(AuthContext);
+  const [groups, setGroups] = useState<Group[]>([]);
   const router = useRouter();
-
   const handleCreateGroup = () => {
     router.push("/home/groups/create");
   };
@@ -102,6 +39,18 @@ export default function MyGroups() {
   const handleAccessGroup = (groupId: string) => {
     router.push(`/home/${groupId}/kanban`);
   };
+  const handleEditGroup = (groupId: string) => {
+    router.push(`/home/groups/details/${groupId}`);
+  };
+
+  useEffect(() => {
+    async function fetchData() {
+      const res = await fetch(`/api/group/user/${user?.id}`);
+      const data = await res.json();
+      setGroups(data);
+    }
+    fetchData();
+  }, [user]);
 
   return (
     <div className="container mx-auto p-4">
@@ -116,16 +65,19 @@ export default function MyGroups() {
           <Card key={group.id} className="flex flex-col">
             <CardHeader>
               <CardTitle>{group.name}</CardTitle>
-              <CardDescription>{group.members.length} membros</CardDescription>
+              <CardDescription>{group.users.length} membros</CardDescription>
             </CardHeader>
             <CardContent className="flex-grow">
               <ScrollArea className="h-[100px]">
                 <div className="flex flex-wrap gap-2">
-                  {group.members.map((member) => (
-                    <Avatar key={member.id} title={member.name}>
-                      <AvatarImage src={member.avatar} alt={member.name} />
+                  {group.users.map((member) => (
+                    <Avatar key={member.user.id} title={member.user.name}>
+                      <AvatarImage
+                        src={"/placeholder.svg?height=32&width=32"}
+                        alt={member.user.name}
+                      />
                       <AvatarFallback>
-                        {member.name
+                        {member.user.name
                           .split(" ")
                           .map((n) => n[0])
                           .join("")}
@@ -136,12 +88,20 @@ export default function MyGroups() {
               </ScrollArea>
             </CardContent>
             <CardFooter>
-              <Button
-                className="w-full"
-                onClick={() => handleAccessGroup(group.id)}
-              >
-                <Users className="mr-2 h-4 w-4" /> Acessar
-              </Button>
+              <div className="flex space-x-2">
+                <Button
+                  className="w-full"
+                  onClick={() => handleAccessGroup(group.id)}
+                >
+                  <Users className="mr-2 h-4 w-4" /> Acessar
+                </Button>
+                <Button
+                  className="w-full"
+                  onClick={() => handleEditGroup(group.id)}
+                >
+                  <Edit className="mr-2 h-4 w-4" /> Editar
+                </Button>
+              </div>
             </CardFooter>
           </Card>
         ))}

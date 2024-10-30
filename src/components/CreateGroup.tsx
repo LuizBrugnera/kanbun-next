@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,61 +24,11 @@ type Member = {
   avatar: string;
 };
 
-const availableMembers: Member[] = [
-  {
-    id: "1",
-    name: "Alice Johnson",
-    email: "alice@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: "2",
-    name: "Bob Smith",
-    email: "bob@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: "3",
-    name: "Charlie Brown",
-    email: "charlie@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: "4",
-    name: "Diana Ross",
-    email: "diana@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: "5",
-    name: "Edward Norton",
-    email: "edward@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: "6",
-    name: "Fiona Apple",
-    email: "fiona@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: "7",
-    name: "George Clooney",
-    email: "george@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: "8",
-    name: "Helen Mirren",
-    email: "helen@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-  },
-];
-
 export default function CreateGroup() {
   const [projectName, setProjectName] = useState("");
+  const [projectDescription, setProjectDescription] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
-
+  const [availableMembers, setAvailableMembers] = useState<Member[]>([]);
   const handleMemberToggle = (memberId: string) => {
     setSelectedMembers((prev) =>
       prev.includes(memberId)
@@ -87,7 +37,7 @@ export default function CreateGroup() {
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (projectName.trim() === "") {
       toast({
@@ -105,16 +55,36 @@ export default function CreateGroup() {
       });
       return;
     }
-    // Aqui você pode adicionar a lógica para enviar os dados para o backend
     console.log("Projeto criado:", { projectName, members: selectedMembers });
+    const res = await fetch("/api/group", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: projectName,
+        description: projectDescription,
+        members: selectedMembers,
+      }),
+    });
     toast({
       title: "Sucesso!",
       description: `Grupo "${projectName}" criado com ${selectedMembers.length} membro(s).`,
     });
     // Resetar o formulário
     setProjectName("");
+    setProjectDescription("");
     setSelectedMembers([]);
   };
+
+  useEffect(() => {
+    async function fetchData() {
+      const res = await fetch("/api/user");
+      const data = await res.json();
+      setAvailableMembers(data);
+    }
+    fetchData();
+  }, []);
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -133,6 +103,15 @@ export default function CreateGroup() {
               placeholder="Digite o nome do projeto"
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="project-name">Descrição do Projeto</Label>
+            <Input
+              id="project-description"
+              placeholder="Escreva uma breve descrição do projeto"
+              value={projectDescription}
+              onChange={(e) => setProjectDescription(e.target.value)}
             />
           </div>
           <div className="space-y-2">

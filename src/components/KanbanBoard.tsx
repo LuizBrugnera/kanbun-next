@@ -1,25 +1,21 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { PlusCircle, GripVertical } from "lucide-react";
+import {
+  PlusCircle,
+  GripVertical,
+  UserCircle,
+  LogOut,
+  Users,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { v4 as uuidv4 } from "uuid";
 import Navbar from "@/components/Navbar";
-import {
-  Command,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { AuthContext } from "@/contexts/AuthContext";
 
 type Task = {
   id: string;
@@ -28,6 +24,7 @@ type Task = {
   stage: string;
   createdAt: Date;
   deadLine: Date;
+  User: GroupMember;
 };
 
 type Column = {
@@ -35,7 +32,6 @@ type Column = {
   title: string;
   tasks: Task[];
 };
-
 type GroupMember = {
   id: string;
   name: string;
@@ -49,8 +45,6 @@ type Group = {
 };
 
 export default function KanbanBoard({ id }: { id: string }) {
-  const [group, setGroup] = useState<Group | null>(null);
-
   const [columns, setColumns] = useState<Column[]>([
     {
       id: "todo",
@@ -58,21 +52,23 @@ export default function KanbanBoard({ id }: { id: string }) {
       tasks: [],
     },
     {
-      id: "inProgress",
+      id: "In Progress",
       title: "Em Progresso",
       tasks: [],
     },
     {
-      id: "inTesting",
+      id: "in Testing",
       title: "Em Testes",
       tasks: [],
     },
     {
-      id: "done",
+      id: "Done",
       title: "Concluído",
       tasks: [],
     },
   ]);
+
+  const { user } = useContext(AuthContext);
 
   const [newTask, setNewTask] = useState({
     content: "",
@@ -81,24 +77,99 @@ export default function KanbanBoard({ id }: { id: string }) {
     deadLine: "",
   });
 
-  // Estado para controlar a exibição do popover
-  const [open, setOpen] = useState(false);
+  const [group, setGroup] = useState<Group | null>(null);
 
-  const addTask = () => {
+  async function fetchGroup() {
+    const paramsValue = await id;
+    if (!paramsValue) return;
+
+    const res = await fetch(`/api/group/${paramsValue}`);
+
+    const data = await res.json();
+    setGroup(data);
+
+    if (data.tasks.length === 0) return;
+
+    const todo = [] as Task[];
+    const inProgress = [] as Task[];
+    const inTesting = [] as Task[];
+    const done = [] as Task[];
+    console.log(data);
+    data.tasks.forEach(
+      (task: {
+        id: string;
+        name: string;
+        stage: string;
+        assignee: string;
+        createdAt: Date;
+        deadLine: Date;
+        content: string;
+        User: GroupMember;
+      }) => {
+        switch (task.stage) {
+          case "todo":
+            todo.push(task);
+            break;
+          case "inProgress":
+            inProgress.push(task);
+            break;
+          case "inTesting":
+            inTesting.push(task);
+            break;
+          case "done":
+            done.push(task);
+            break;
+        }
+      }
+    );
+
+    setColumns([
+      {
+        id: "todo",
+        title: "A Fazer",
+        tasks: todo,
+      },
+      {
+        id: "inProgress",
+        title: "Em Progresso",
+        tasks: inProgress,
+      },
+      {
+        id: "inTesting",
+        title: "Em Testes",
+        tasks: inTesting,
+      },
+      {
+        id: "done",
+        title: "Concluído",
+        tasks: done,
+      },
+    ]);
+  }
+
+  const addTask = async () => {
     if (newTask.content && newTask.assignee) {
-      const updatedColumns = [...columns];
       const now = new Date();
       const deadline = new Date(now);
       deadline.setDate(now.getDate() + parseInt(newTask.deadLine));
-      updatedColumns[0].tasks.push({
-        id: uuidv4(),
+      const task = {
         content: newTask.content,
         assignee: newTask.assignee,
         createdAt: now,
         deadLine: deadline,
         stage: "todo",
-      });
-      setColumns(updatedColumns);
+        groupId: +id,
+        userId: user?.id,
+      };
+
+      fetch(`/api/task`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(task),
+      }).then(() => fetchGroup());
+
       setNewTask({
         content: "",
         assignee: "",
@@ -146,204 +217,144 @@ export default function KanbanBoard({ id }: { id: string }) {
     newColumns[destColIndex] = { ...destCol, tasks: destTasks };
 
     setColumns(newColumns);
+
+    //update task
+    const task = columns[sourceColIndex].tasks.find(
+      (task) => task.id === movedTask.id
+    );
+    if (task) {
+      task.stage = destCol.id;
+
+      fetch(`/api/task/${task.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(task),
+      });
+    }
   };
 
   useEffect(() => {
-    async function fetchData() {
-      const paramsValue = await id;
-      if (!paramsValue) return;
-
-      setGroup({
-        id: "1",
-        name: "Projeto A",
-        members: [
-          {
-            id: "1",
-            name: "Alice Johnson",
-            avatar: "/placeholder.svg?height=32&width=32",
-          },
-          {
-            id: "2",
-            name: "Bob Smith",
-            avatar: "/placeholder.svg?height=32&width=32",
-          },
-          {
-            id: "3",
-            name: "Charlie Brown",
-            avatar: "/placeholder.svg?height=32&width=32",
-          },
-        ],
-      });
-    }
-    fetchData();
+    fetchGroup();
   }, [id]);
 
   return (
     <div className="flex flex-col h-screen">
-      {group ? (
-        <div className="flex-1 p-4 overflow-auto">
-          <h1 className="text-2xl font-bold mb-4">
-            {group.name || "Kanban Board"}
-          </h1>
-          <div className="mb-4 flex space-x-2">
-            <Input
-              type="text"
-              placeholder="Nova tarefa"
-              value={newTask.content}
-              onChange={(e) =>
-                setNewTask({ ...newTask, content: e.target.value })
-              }
-            />
-            {/* Combobox para selecionar o responsável */}
-            <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  role="combobox"
-                  aria-expanded={open}
-                  className="w-[200px] justify-between"
-                >
-                  {newTask.assignee
-                    ? group.members.find(
-                        (member) => member.id === newTask.assignee
-                      )?.name
-                    : "Selecione o responsável"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="p-0">
-                <Command>
-                  <CommandInput placeholder="Pesquisar membros..." />
-                  <CommandGroup>
-                    {group.members.map((member) => (
-                      <CommandItem
-                        key={member.id}
-                        onSelect={() => {
-                          setNewTask({ ...newTask, assignee: member.id });
-                          setOpen(false);
-                        }}
-                      >
-                        <Avatar className="mr-2 h-5 w-5">
-                          <AvatarImage src={member.avatar} alt={member.name} />
-                          <AvatarFallback>
-                            {member.name.slice(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        {member.name}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </Command>
-              </PopoverContent>
-            </Popover>
-            <Input
-              type="number"
-              placeholder="Dias até a conclusão"
-              value={newTask.deadLine}
-              onChange={(e) =>
-                setNewTask({ ...newTask, deadLine: e.target.value })
-              }
-            />
-            <Button onClick={addTask}>
-              <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Tarefa
-            </Button>
-          </div>
+      <div className="flex-1 p-4 overflow-auto">
+        <h1 className="text-2xl font-bold mb-4">
+          {group?.name || "Kanban Board"}
+        </h1>
+        <div className="mb-4 flex space-x-2">
+          <Input
+            type="text"
+            placeholder="Nova tarefa"
+            value={newTask.content}
+            onChange={(e) =>
+              setNewTask({ ...newTask, content: e.target.value })
+            }
+          />
+          <Input
+            type="text"
+            placeholder="Responsável"
+            value={newTask.assignee}
+            onChange={(e) =>
+              setNewTask({ ...newTask, assignee: e.target.value })
+            }
+          />
+          <Input
+            type="number"
+            placeholder="Dias até a conclusão"
+            value={newTask.deadLine}
+            onChange={(e) =>
+              setNewTask({ ...newTask, deadLine: e.target.value })
+            }
+          />
+          <Button onClick={addTask}>
+            <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Tarefa
+          </Button>
+        </div>
 
-          {/* Quadro Kanban */}
-          <DragDropContext onDragEnd={onDragEnd}>
-            <div className="flex space-x-4">
-              {columns.map((column) => (
-                <div
-                  key={column.id}
-                  className="bg-gray-100 p-4 rounded-lg w-1/4"
-                >
-                  <h2 className="font-semibold mb-4">{column.title}</h2>
-                  <Droppable droppableId={column.id}>
-                    {(provided) => (
-                      <div
-                        {...provided.droppableProps}
-                        ref={provided.innerRef}
-                        className="space-y-2 min-h-[100px]"
-                      >
-                        {column.tasks.map((task, index) => (
-                          <Draggable
-                            key={task.id}
-                            draggableId={task.id}
-                            index={index}
-                          >
-                            {(provided) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className="mb-2"
-                              >
-                                <Card className="bg-white select-none cursor-move">
-                                  <CardContent className="p-4">
-                                    <div className="flex justify-between items-center">
-                                      <div>
-                                        <p>{task.content}</p>
-                                        <p className="text-sm text-gray-500">
-                                          {
-                                            group.members.find(
-                                              (member) =>
-                                                member.id === task.assignee
-                                            )?.name
-                                          }
-                                        </p>
-                                        <p className="text-xs text-gray-400">
-                                          Estágio: {task.stage}
-                                        </p>
-                                        <p className="text-xs text-gray-400">
-                                          Data de criação:{" "}
-                                          {task.createdAt.toLocaleDateString()}
-                                        </p>
-                                        <p className="text-xs text-gray-400">
-                                          Data de conclusão:{" "}
-                                          {task.deadLine.toLocaleDateString()}
-                                        </p>
-                                      </div>
-                                      <div className="flex items-center">
-                                        <Avatar>
-                                          <AvatarImage
-                                            src={
-                                              group.members.find(
-                                                (member) =>
-                                                  member.id === task.assignee
-                                              )?.avatar || ""
-                                            }
-                                          />
-                                          <AvatarFallback>
-                                            {group.members
-                                              .find(
-                                                (member) =>
-                                                  member.id === task.assignee
-                                              )
-                                              ?.name.slice(0, 2)
-                                              .toUpperCase()}
-                                          </AvatarFallback>
-                                        </Avatar>
-                                        <GripVertical className="text-gray-400 ml-2 cursor-pointer" />
-                                      </div>
+        {/* Quadro Kanban */}
+        <DragDropContext onDragEnd={onDragEnd}>
+          <div className="flex space-x-4">
+            {columns.map((column) => (
+              <div key={column.id} className="bg-gray-100 p-4 rounded-lg w-1/3">
+                <h2 className="font-semibold mb-4">{column.title}</h2>
+                <Droppable droppableId={column.id}>
+                  {(provided) => (
+                    <div
+                      {...provided.droppableProps}
+                      ref={provided.innerRef}
+                      className="space-y-2 min-h-[100px]"
+                    >
+                      {column.tasks.map((task, index) => (
+                        <Draggable
+                          key={task.id}
+                          draggableId={task.id}
+                          index={index}
+                        >
+                          {(provided) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              className="mb-2"
+                            >
+                              <Card className="bg-white select-none cursor-move">
+                                <CardContent className="p-4">
+                                  <div className="flex justify-between items-center">
+                                    <div>
+                                      <p>{task.content}</p>
+                                      <p className="text-sm text-gray-500">
+                                        {task.assignee}
+                                      </p>
+                                      <p className="text-xs text-gray-400">
+                                        Estágio: {task.stage}
+                                      </p>
+                                      <p className="text-xs text-gray-400">
+                                        Data de criação:{" "}
+                                        {new Date(
+                                          task.createdAt
+                                        ).toLocaleDateString()}
+                                      </p>
+                                      <p className="text-xs text-gray-400">
+                                        Data de conclusão:{" "}
+                                        {new Date(
+                                          task.deadLine
+                                        ).toLocaleDateString()}
+                                      </p>
+                                      <p className="text-xs text-gray-400">
+                                        Criador: {task.User.name}
+                                      </p>
                                     </div>
-                                  </CardContent>
-                                </Card>
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                </div>
-              ))}
-            </div>
-          </DragDropContext>
-        </div>
-      ) : (
-        <div className="flex-1 p-4 overflow-auto">
-          <h1 className="text-2xl font-bold mb-4">Grupo não encontrado</h1>
-        </div>
-      )}
+                                    <div className="flex items-center">
+                                      <Avatar>
+                                        <AvatarImage
+                                          src={`https://api.dicebear.com/6.x/initials/svg?seed=${task.assignee}`}
+                                        />
+                                        <AvatarFallback>
+                                          {task.assignee}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <GripVertical className="text-gray-400 ml-2 cursor-pointer" />
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </div>
+            ))}
+          </div>
+        </DragDropContext>
+      </div>
     </div>
   );
 }
